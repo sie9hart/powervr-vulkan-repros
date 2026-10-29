@@ -2,10 +2,11 @@
 // VK_ATTACHMENT_UNUSED. Valid per spec: an unused reference means writes to that location are
 // discarded.
 //
-// Usage: repro_unused_attachment <variant>
+// Usage: repro_unused_attachment <variant> [msaa2]
 //   control          depth-only subpass, colorAttachmentCount = 0           (expected: OK)
 //   unused-nowrite   colorAttachmentCount = 1, [0] = UNUSED, FS writes none   (expected: OK)
 //   unused-write     colorAttachmentCount = 1, [0] = UNUSED, FS writes loc 0  (expected: OK)
+//   msaa2            optional: 2x MSAA depth attachment and rasterization
 #include "common.h"
 
 static const uint32_t kVert[] = {
@@ -20,19 +21,21 @@ static const uint32_t kSolid[] = {
 
 int main(int argc, char** argv) {
     const char* variant = argc > 1 ? argv[1] : "unused-nowrite";
+    const VkSampleCountFlagBits samples =
+        (argc > 2 && std::strcmp(argv[2], "msaa2") == 0) ? VK_SAMPLE_COUNT_2_BIT : VK_SAMPLE_COUNT_1_BIT;
     const bool control = std::strcmp(variant, "control") == 0;
     const bool write = std::strcmp(variant, "unused-write") == 0;
     if (!control && !write && std::strcmp(variant, "unused-nowrite") != 0) {
         std::printf("unknown variant %s\n", variant);
         return 1;
     }
-    std::printf("variant: %s\n", variant);
+    std::printf("variant: %s, samples: %d\n", variant, int(samples));
     Ctx c = CreateContext();
 
     // Render pass: one depth attachment, plus (unless control) one UNUSED colour reference.
     VkAttachmentDescription depth{};
     depth.format = VK_FORMAT_D16_UNORM;
-    depth.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth.samples = samples;
     depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -71,6 +74,7 @@ int main(int argc, char** argv) {
                  VK_SHADER_STAGE_FRAGMENT_BIT, fs, "main", nullptr};
 
     GfxState st(64, 64);
+    st.ms.rasterizationSamples = samples;
     st.ds.depthTestEnable = VK_TRUE;
     st.ds.depthWriteEnable = VK_TRUE;
     st.ds.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;

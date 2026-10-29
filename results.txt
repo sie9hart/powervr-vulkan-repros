@@ -1,0 +1,236 @@
+Infinix X6851B
+Infinix/X6851B-OP/Infinix-X6851B:15/AP3A.240905.015.A2/185001:user/release-keys
+
+=== repro_view_format control
+case: control, load + blend(ZERO, ONE) draw + store
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+pipeline created, recording
+submitting and waiting
+GPU work finished
+texel (0,0): 128 128 128 128   texel (8,8): 128 128 128 128
+expected:    128 128 128 128
+RESULT OK
+exit=0
+
+=== repro_view_format srgb-image-unorm-view
+case: srgb-image-unorm-view, load + blend(ZERO, ONE) draw + store
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+pipeline created, recording
+submitting and waiting
+GPU work finished
+texel (0,0): 55 55 55 128   texel (8,8): 55 55 55 128
+expected:    128 128 128 128
+RESULT MISMATCH: the loaded value was converted through the image format
+exit=3
+
+=== repro_view_format unorm-image-srgb-view
+case: unorm-image-srgb-view, load + blend(ZERO, ONE) draw + store
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+pipeline created, recording
+submitting and waiting
+GPU work finished
+texel (0,0): 188 188 188 128   texel (8,8): 188 188 188 128
+expected:    128 128 128 128
+RESULT MISMATCH: the loaded value was converted through the image format
+exit=3
+
+=== repro_view_format srgb-image-unorm-view nodraw
+case: srgb-image-unorm-view, load + store, no draw
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+pipeline created, recording
+submitting and waiting
+GPU work finished
+texel (0,0): 128 128 128 128   texel (8,8): 128 128 128 128
+expected:    128 128 128 128
+RESULT OK
+exit=0
+
+=== repro_view_format unorm-image-srgb-view nodraw
+case: unorm-image-srgb-view, load + store, no draw
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+pipeline created, recording
+submitting and waiting
+GPU work finished
+texel (0,0): 128 128 128 128   texel (8,8): 128 128 128 128
+expected:    128 128 128 128
+RESULT OK
+exit=0
+
+=== repro_unused_attachment control
+variant: control, samples: 1
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+render pass created
+calling vkCreateGraphicsPipelines...
+RESULT OK: pipeline created
+exit=0
+
+=== repro_unused_attachment unused-nowrite
+variant: unused-nowrite, samples: 1
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+render pass created
+calling vkCreateGraphicsPipelines...
+RESULT OK: pipeline created
+exit=0
+
+=== repro_unused_attachment unused-write
+variant: unused-write, samples: 1
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+render pass created
+calling vkCreateGraphicsPipelines...
+RESULT OK: pipeline created
+exit=0
+
+=== repro_unused_attachment unused-nowrite msaa2
+variant: unused-nowrite, samples: 2
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+render pass created
+calling vkCreateGraphicsPipelines...
+RESULT OK: pipeline created
+exit=0
+
+=== repro_unused_attachment unused-write msaa2
+variant: unused-write, samples: 2
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+render pass created
+calling vkCreateGraphicsPipelines...
+RESULT OK: pipeline created
+exit=0
+
+=== repro_compute_cache inprocess
+mode: inprocess
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+[empty cache] vkCreateComputePipelines #0...
+[empty cache] compute pipeline #0 OK
+[empty cache] vkCreateComputePipelines #1...
+[empty cache] compute pipeline #1 OK
+cache data: 8008 bytes
+[seeded cache] vkCreateComputePipelines #0...
+[seeded cache] compute pipeline #0 OK
+[seeded cache] vkCreateComputePipelines #1...
+[seeded cache] compute pipeline #1 OK
+RESULT OK
+exit=0
+
+=== repro_compute_cache mixed
+mode: mixed
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+[empty cache] 40 graphics pipelines OK
+[empty cache] vkCreateComputePipelines #0...
+[empty cache] compute pipeline #0 OK
+[empty cache] vkCreateComputePipelines #1...
+[empty cache] compute pipeline #1 OK
+cache data: 239256 bytes
+[seeded cache] 40 graphics pipelines OK
+[seeded cache] vkCreateComputePipelines #0...
+[seeded cache] compute pipeline #0 OK
+[seeded cache] vkCreateComputePipelines #1...
+[seeded cache] compute pipeline #1 OK
+RESULT OK
+exit=0
+
+=== repro_compute_cache save cache.bin
+mode: save
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+[empty cache] vkCreateComputePipelines #0...
+[empty cache] compute pipeline #0 OK
+[empty cache] vkCreateComputePipelines #1...
+[empty cache] compute pipeline #1 OK
+saved 8008 bytes to cache.bin
+RESULT OK
+exit=0
+
+=== repro_compute_cache load cache.bin
+mode: load
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+loaded 8008 bytes from cache.bin
+[seeded cache] vkCreateComputePipelines #0...
+[seeded cache] compute pipeline #0 OK
+[seeded cache] vkCreateComputePipelines #1...
+[seeded cache] compute pipeline #1 OK
+RESULT OK
+exit=0
+
+=== repro_concurrent_compile 4 60 serial
+threads: 4, pipelines per thread: 60, mode: serial (global mutex)
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+  20 pipelines created
+  40 pipelines created
+  60 pipelines created
+  80 pipelines created
+  100 pipelines created
+  120 pipelines created
+  140 pipelines created
+  160 pipelines created
+  180 pipelines created
+  200 pipelines created
+  220 pipelines created
+  240 pipelines created
+RESULT OK: 240 pipelines created
+exit=0
+
+=== repro_concurrent_compile 8 150
+threads: 8, pipelines per thread: 150, mode: concurrent
+device: PowerVR BXM-8-256  api 1.1.170  driver 0x005d9576  vendor 0x1010  id 0x35010101
+  20 pipelines created
+  40 pipelines created
+  60 pipelines created
+  80 pipelines created
+  100 pipelines created
+  120 pipelines created
+  140 pipelines created
+  160 pipelines created
+  180 pipelines created
+  200 pipelines created
+  220 pipelines created
+  240 pipelines created
+  260 pipelines created
+  280 pipelines created
+  300 pipelines created
+  320 pipelines created
+  340 pipelines created
+  360 pipelines created
+  380 pipelines created
+  400 pipelines created
+  420 pipelines created
+  440 pipelines created
+  460 pipelines created
+  480 pipelines created
+  500 pipelines created
+  520 pipelines created
+  540 pipelines created
+  560 pipelines created
+  580 pipelines created
+  600 pipelines created
+  620 pipelines created
+  640 pipelines created
+  660 pipelines created
+  680 pipelines created
+  700 pipelines created
+  720 pipelines created
+  740 pipelines created
+  760 pipelines created
+  780 pipelines created
+  800 pipelines created
+  820 pipelines created
+  840 pipelines created
+  860 pipelines created
+  880 pipelines created
+  900 pipelines created
+  920 pipelines created
+  940 pipelines created
+  960 pipelines created
+  980 pipelines created
+  1000 pipelines created
+  1020 pipelines created
+  1040 pipelines created
+  1060 pipelines created
+  1080 pipelines created
+  1100 pipelines created
+  1120 pipelines created
+  1140 pipelines created
+  1160 pipelines created
+  1180 pipelines created
+  1200 pipelines created
+RESULT OK: 1200 pipelines created
+exit=0
+

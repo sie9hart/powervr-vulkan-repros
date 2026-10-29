@@ -5,6 +5,9 @@
 // Usage: repro_compute_cache save <file>   build the pipelines on an empty cache, save its data
 //        repro_compute_cache load <file>   seed a cache with that data, build the same pipelines
 //        repro_compute_cache inprocess     both steps in one process (second cache seeded)
+//        repro_compute_cache mixed         like inprocess, but the cache also holds 40 graphics
+//                                          pipelines built before the compute ones (the
+//                                          application that hit the fault used one cache for both)
 // Expected: every step prints RESULT OK.
 #include "common.h"
 #include <fstream>
@@ -16,6 +19,76 @@ static const uint32_t kBufferComp[] = {
 static const uint32_t kImageComp[] = {
 #include "image.comp.inc"
 };
+static const uint32_t kVert[] = {
+#include "fullscreen.vert.inc"
+};
+static const uint32_t kHeavy[] = {
+#include "heavy.frag.inc"
+};
+
+// 40 distinct graphics pipelines (one specialization constant each) into `cache`.
+static void BuildGraphics(const Ctx& c, VkPipelineCache cache, const char* tag) {
+    VkAttachmentDescription color{};
+    color.format = VK_FORMAT_R8G8B8A8_UNORM;
+    color.samples = VK_SAMPLE_COUNT_1_BIT;
+    color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentReference ref{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+    VkSubpassDescription sub{};
+    sub.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sub.colorAttachmentCount = 1;
+    sub.pColorAttachments = &ref;
+    VkRenderPassCreateInfo rpci{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
+    rpci.attachmentCount = 1;
+    rpci.pAttachments = &color;
+    rpci.subpassCount = 1;
+    rpci.pSubpasses = &sub;
+    VkRenderPass rp{};
+    CHECK(vkCreateRenderPass(c.device, &rpci, nullptr, &rp));
+    VkPipelineLayoutCreateInfo plci{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    VkPipelineLayout layout{};
+    CHECK(vkCreatePipelineLayout(c.device, &plci, nullptr, &layout));
+    VkShaderModule vs = Module(c.device, kVert, sizeof(kVert));
+    VkShaderModule fs = Module(c.device, kHeavy, sizeof(kHeavy));
+    GfxState st(64, 64);
+    VkPipelineColorBlendAttachmentState blend{};
+    blend.colorWriteMask = 0xf;
+    VkPipelineColorBlendStateCreateInfo cb{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    cb.attachmentCount = 1;
+    cb.pAttachments = &blend;
+    for (int32_t seed = 0; seed < 40; ++seed) {
+        VkSpecializationMapEntry entry{0, 0, sizeof(int32_t)};
+        VkSpecializationInfo spec{1, &entry, sizeof(seed), &seed};
+        VkPipelineShaderStageCreateInfo stages[2]{};
+        stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
+                     VK_SHADER_STAGE_VERTEX_BIT, vs, "main", nullptr};
+        stages[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0,
+                     VK_SHADER_STAGE_FRAGMENT_BIT, fs, "main", &spec};
+        VkGraphicsPipelineCreateInfo gpci{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
+        gpci.stageCount = 2;
+        gpci.pStages = stages;
+        gpci.pVertexInputState = &st.vi;
+        gpci.pInputAssemblyState = &st.ia;
+        gpci.pViewportState = &st.vp;
+        gpci.pRasterizationState = &st.rs;
+        gpci.pMultisampleState = &st.ms;
+        gpci.pColorBlendState = &cb;
+        gpci.layout = layout;
+        gpci.renderPass = rp;
+        VkPipeline pipe{};
+        CHECK(vkCreateGraphicsPipelines(c.device, cache, 1, &gpci, nullptr, &pipe));
+        vkDestroyPipeline(c.device, pipe, nullptr);
+    }
+    std::printf("[%s] 40 graphics pipelines OK\n", tag);
+    vkDestroyShaderModule(c.device, vs, nullptr);
+    vkDestroyShaderModule(c.device, fs, nullptr);
+    vkDestroyPipelineLayout(c.device, layout, nullptr);
+    vkDestroyRenderPass(c.device, rp, nullptr);
+}
 
 struct Pipelines {
     VkDescriptorSetLayout set_layouts[2]{};
@@ -103,6 +176,7 @@ int main(int argc, char** argv) {
         std::ofstream(argv[2], std::ios::binary)
             .write(reinterpret_cast<const char*>(data.data()), std::streamsize(data.size()));
         std::printf("saved %zu bytes to %s\nRESULT OK\n", data.size(), argv[2]);
+        vkDestroyPipelineCache(c.device, cache, nullptr);
     } else if (std::strcmp(mode, "load") == 0 && argc > 2) {
         std::ifstream in(argv[2], std::ios::binary);
         std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
@@ -110,6 +184,7 @@ int main(int argc, char** argv) {
         VkPipelineCache cache = MakeCache(c, &data);
         BuildAll(c, p, cache, "seeded cache");
         std::printf("RESULT OK\n");
+        vkDestroyPipelineCache(c.device, cache, nullptr);
     } else if (std::strcmp(mode, "inprocess") == 0) {
         VkPipelineCache first = MakeCache(c, nullptr);
         BuildAll(c, p, first, "empty cache");
@@ -118,9 +193,29 @@ int main(int argc, char** argv) {
         VkPipelineCache second = MakeCache(c, &data);
         BuildAll(c, p, second, "seeded cache");
         std::printf("RESULT OK\n");
+        vkDestroyPipelineCache(c.device, first, nullptr);
+        vkDestroyPipelineCache(c.device, second, nullptr);
+    } else if (std::strcmp(mode, "mixed") == 0) {
+        VkPipelineCache first = MakeCache(c, nullptr);
+        BuildGraphics(c, first, "empty cache");
+        BuildAll(c, p, first, "empty cache");
+        std::vector<uint8_t> data = CacheData(c, first);
+        std::printf("cache data: %zu bytes\n", data.size());
+        VkPipelineCache second = MakeCache(c, &data);
+        BuildGraphics(c, second, "seeded cache");
+        BuildAll(c, p, second, "seeded cache");
+        std::printf("RESULT OK\n");
+        vkDestroyPipelineCache(c.device, first, nullptr);
+        vkDestroyPipelineCache(c.device, second, nullptr);
     } else {
-        std::printf("usage: %s save <file> | load <file> | inprocess\n", argv[0]);
+        std::printf("usage: %s save <file> | load <file> | inprocess | mixed\n", argv[0]);
         return 1;
     }
+    for (int i = 0; i < 2; ++i) {
+        vkDestroyShaderModule(c.device, p.modules[i], nullptr);
+        vkDestroyPipelineLayout(c.device, p.layouts[i], nullptr);
+        vkDestroyDescriptorSetLayout(c.device, p.set_layouts[i], nullptr);
+    }
+    DestroyContext(c);
     return 0;
 }

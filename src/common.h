@@ -15,6 +15,9 @@
         }                                                                                  \
     } while (0)
 
+// Unbuffered stdout: a hang or crash must not swallow the last progress line.
+static const int kUnbuffered = (std::setvbuf(stdout, nullptr, _IONBF, 0), 0);
+
 struct Ctx {
     VkInstance instance{};
     VkPhysicalDevice gpu{};

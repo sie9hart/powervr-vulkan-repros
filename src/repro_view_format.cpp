@@ -190,6 +190,7 @@ int main(int argc, char** argv) {
     VkPipeline pipe{};
     CHECK(vkCreateGraphicsPipelines(c.device, VK_NULL_HANDLE, 1, &gpci, nullptr, &pipe));
 
+    std::printf("pipeline created, recording\n");
     VkCommandBuffer cb = BeginOneShot(c);
     Barrier(cb, image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0,
             VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
@@ -217,7 +218,9 @@ int main(int argc, char** argv) {
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
     vkCmdCopyImageToBuffer(cb, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, readback.buffer, 1, &region);
+    std::printf("submitting and waiting\n");
     SubmitAndWait(c, cb);
+    std::printf("GPU work finished\n");
 
     CHECK(vkMapMemory(c.device, readback.memory, 0, bytes, 0, &mapped));
     const uint8_t* px = static_cast<const uint8_t*>(mapped);
@@ -227,6 +230,23 @@ int main(int argc, char** argv) {
     const bool ok = px[0] == 128 && px[1] == 128 && px[2] == 128 && px[3] == 128;
     std::printf(ok ? "RESULT OK\n" : "RESULT MISMATCH: the loaded value was converted through the image format\n");
     vkUnmapMemory(c.device, readback.memory);
+
+    // Every child object goes before the device (destroying a device with live children is
+    // invalid usage and hangs this driver at exit).
+    vkDeviceWaitIdle(c.device);
+    vkDestroyPipeline(c.device, pipe, nullptr);
+    vkDestroyShaderModule(c.device, vs, nullptr);
+    vkDestroyShaderModule(c.device, fs, nullptr);
+    vkDestroyPipelineLayout(c.device, layout, nullptr);
+    vkDestroyFramebuffer(c.device, fb, nullptr);
+    vkDestroyRenderPass(c.device, rp, nullptr);
+    vkDestroyImageView(c.device, view, nullptr);
+    vkDestroyImage(c.device, image, nullptr);
+    vkFreeMemory(c.device, image_memory, nullptr);
+    for (Buffer* b : {&upload, &readback}) {
+        vkDestroyBuffer(c.device, b->buffer, nullptr);
+        vkFreeMemory(c.device, b->memory, nullptr);
+    }
     DestroyContext(c);
     return ok ? 0 : 3;
 }

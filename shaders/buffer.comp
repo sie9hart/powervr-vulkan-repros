@@ -1,0 +1,11 @@
+#version 450
+layout(local_size_x = 64) in;
+layout(set = 0, binding = 0, std430) buffer Data { uint values[]; };
+layout(push_constant) uniform Push { uint count; uint salt; };
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= count) return;
+    uint v = values[i] ^ salt;
+    for (int k = 0; k < 8; ++k) v = v * 1664525u + 1013904223u;
+    values[i] = v;
+}

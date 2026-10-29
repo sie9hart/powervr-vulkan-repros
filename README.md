@@ -93,3 +93,11 @@ starting point for the reduction; this section will be updated when one of them 
 ## License
 
 MIT, see `LICENSE`.
+
+## Capture replay (work in progress)
+
+`vkpc_replay` replays a `.vkpc` pipeline capture (device extensions and features, shader modules,
+layouts, render passes, pipeline caches with seed data, every pipeline) without the application
+that recorded it; `tools/reduce_shader.sh` drives `spirv-reduce` against the device with it. It
+is how items #3, #7 and #8 are being reduced to application-free cases. Not yet exercised on a
+real capture; treat it as experimental until a reduced case lands in the table above.

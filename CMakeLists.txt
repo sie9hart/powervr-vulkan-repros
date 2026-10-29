@@ -34,3 +34,8 @@ foreach(repro unused_attachment compute_cache concurrent_compile view_format)
     target_compile_options(repro_${repro} PRIVATE -Wall -Wextra -Wno-missing-field-initializers -O1 -g)
     target_link_libraries(repro_${repro} PRIVATE vulkan)
 endforeach()
+
+# Replays a .vkpc pipeline capture without the application that recorded it.
+add_executable(vkpc_replay src/vkpc_replay.cpp)
+target_compile_options(vkpc_replay PRIVATE -Wall -Wextra -Wno-missing-field-initializers -O1 -g)
+target_link_libraries(vkpc_replay PRIVATE vulkan)
